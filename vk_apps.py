@@ -1,7 +1,7 @@
 import config
 import requests
 import models
-from models import Session, engine
+from models import Session
 # from time import sleep
 # from random import randint
 
@@ -34,7 +34,6 @@ class VkApi:
         endpoint = f'{config.base_url}users.search'
 
         session = Session()
-        connection = engine.connect()
 
         params = {
             'count': count,
@@ -82,7 +81,7 @@ class VkApi:
                 f'{config.base_profile_url}{row["id"]}', \
                 photo_profile
 
-    def get_user_info(self, user_id, mode=0):
+    def get_user_info(self, user_id):
         """
         Посылает api запрос, используя метод users.get и запрашивает
         информацию о пользователе
@@ -90,7 +89,6 @@ class VkApi:
         1 - возвращает только имя (необходимо для начального диалога))
 
         :param user_id: int
-        :param mode: int
         :return: str
         """
 
@@ -189,6 +187,3 @@ class VkApi:
                     break
 
             return ','.join(res)
-
-
-

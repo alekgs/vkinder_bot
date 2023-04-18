@@ -1,15 +1,12 @@
 import vk_apps
 import vk_bot
 import models
-from models import Session, engine
 from vk_api.longpoll import VkEventType
 from art import tprint
 from datetime import datetime as dt
 
-# заставка для консоли)
+# заставочка для консоли)
 tprint('VKinder Bot')
-
-# bot_user_info = {}
 
 
 def main():
@@ -19,14 +16,8 @@ def main():
     vk_api = vk_apps.VkApi()
     vkbot = vk_bot.VKBot()
 
-    session = Session()
-    connection = engine.connect()
-
     bot_user_info = {}
     stack = []
-
-    flag_favorite = False
-    flag_black = False
 
     print('OK')
 
@@ -39,14 +30,12 @@ def main():
         :param flag_list: Boolean
         :return: Boolean
         """
-        nonlocal flag_favorite
-        nonlocal flag_black
 
         first_name, last_name, url, user_attachment = stack.pop()
         vk_user_id = int(url.split('id')[1])
 
         if flag_list and models.check_if_match_exists(vk_user_id)[0] is None:
-            flag_favorite = False
+
             models.add_new_match_to_favorites(
                     vk_user_id, bot_user_id,
                     first_name,
@@ -69,8 +58,6 @@ def main():
 
         elif not flag_list and \
                 models.check_if_match_exists(vk_user_id)[1] is None:
-
-            flag_black = False
 
             models.add_new_match_to_black_list(
                     vk_user_id, bot_user_id,
@@ -103,7 +90,7 @@ def main():
 
                     # запросить всю инфу от пользователя бота,
 
-                    res = vk_api.get_user_info(event.user_id, 1)
+                    res = vk_api.get_user_info(event.user_id)
                     name_bot_user, city, sex, bdate, relation = res
 
                     # заполняем словарь для поиска
@@ -175,7 +162,7 @@ def main():
                     bdate = bot_user_info.get('bdate')
                     relation = bot_user_info.get('relation')
 
-                    # поиск людей  в соответствии с данными
+                    # поиск людей в соответствии с данными
                     # пользователя бота
                     data = vk_api.search_user(city, sex, bdate, relation)
 
@@ -191,8 +178,7 @@ def main():
                         vkbot.send_msg(event.user_id,
                                        message=msg,
                                        attachment=data[3])
-                        # print(bot_user_info)
-                        flag_favorite, flag_black = True, True
+                        # flag_favorite, flag_black = True, True
 
                     elif not data:
                         # если данных нет (пришел пустой список)
