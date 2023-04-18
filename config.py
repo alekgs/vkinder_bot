@@ -1,8 +1,6 @@
 token_vkinder = ''
 access_token = ''
 service_key = ''
-client_secret = ''
-app_id = ''
 
 vkapi_version = '5.131'
 redirect_uri = 'http://localhost/callback'
