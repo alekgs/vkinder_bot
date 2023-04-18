@@ -121,7 +121,7 @@ class VkApi:
         else:
             data = response.json()['response'][0]
 
-            # Город
+            # Город (необязателен в профиле)
             if data.get('city', None) is None:
                 # если город не указан в профиле
                 # то получаем его из списка городов с ВК
@@ -138,22 +138,16 @@ class VkApi:
             else:
                 city = data.get('city').get('title')
 
-            # Дата рождения
-            if data.get('bdate', None) is None or len(
-                    data.get('bdate').split('.')) < 3:
-                bdate = randint(1970, 2000)
-            else:
-                bdate = int(data.get('bdate').split('.')[2])
+            # Дата рождения (обязательна в профиле)
+            bdate = int(data.get('bdate').split('.')[2])
 
-            # Пол
-            if data.get('sex', None) is None:
-                sex = randint(0, 2)
-            else:
-                sex = (1, 2)[data.get('sex') == 1]
+            # Пол (обязателен в профиле)
+            sex = (1, 2)[data.get('sex') == 1]
 
-            # Семейное положение
-            relation = data.get('relation', None)
+            # Семейное положение (необязательное в профиле)
+            relation = data.get('relation')
             if relation is None:
+                # выбираем рандомно из кодов ВК
                 relation = randint(0, 8)
 
             if mode:
@@ -223,8 +217,8 @@ class VkApi:
         """
         result = self.get_user_info(user_id)
 
-        if not all(result):
-            return result
+        # if not all(result):
+        #     return result
 
         city, sex, bdate, relation = result
 
