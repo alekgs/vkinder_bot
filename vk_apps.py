@@ -219,24 +219,4 @@ class VkApi:
         except ConnectionError:
             print('Connection error')
 
-    def get_user_for_bot(self, user_id):
-        """
-        Получает информацию о пользователе (дата рождения, город,
-        пол, семейное положение), участвующего в диалоге с ботом.
-        Проверяет, есть ли данный пользователь в БД, если нет,
-        то добавляет его в БД.
-        :param user_id: int
-        :return: list
-        """
-        result = self.get_user_info(user_id)
-
-        # if not all(result):
-        #     return result
-
-        name, city, sex, bdate, relation = result
-
-        if models.check_if_bot_user_exists(user_id) is None:
-            models.add_bot_user(user_id)
-
-        return self.search_user(city, sex, bdate, relation)
-
+    
