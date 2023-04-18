@@ -1,9 +1,9 @@
 import config
 import requests
 import models
-from time import sleep
-from random import randint
 from models import Session, engine
+# from time import sleep
+# from random import randint
 
 
 class VkApi:
@@ -17,11 +17,11 @@ class VkApi:
             'access_token': self.token,
             'v': config.vkapi_version
         }
-        self.offset = randint(0, 50)
+        self.offset = 0
         self.wish_list = []
         self.black_list = []
 
-    def search_user(self, city, sex, birth_year, relation, count=1):
+    def search_user(self, city, sex, birth_year, relation, count=30):
         """
         Посылает API запрос, используя VK API метод users.search,
         с параметрами 'count', 'sex', 'birth_year', 'has_photo', 'hometown',
@@ -36,59 +36,50 @@ class VkApi:
         session = Session()
         connection = engine.connect()
 
-        while True:
-            # пауза для исключения ошибки 'Too many requests per second'
-            sleep(0.3)
-            self.offset += count
-            params = {
-                'count': count,
-                'sex': sex,
-                'birth_year': birth_year,
-                'has_photo': 1,
-                'hometown': city,
-                'relation': relation,
-                'offset': self.offset
-            }
-            try:
-                params = {**params, **self.params}
-                resp = requests.get(url=endpoint, params=params)
+        params = {
+            'count': count,
+            'sex': sex,
+            'birth_year': birth_year,
+            'has_photo': 1,
+            'hometown': city,
+            'relation': relation,
+            'offset': self.offset
+        }
+        params = {**params, **self.params}
+        resp = requests.get(url=endpoint, params=params)
 
-                if resp.status_code != 200:
-                    raise ConnectionError
+        if resp.json().get('error'):
+            resp_error = resp.json()['error']['error_code'], \
+                resp.json()['error']['error_msg']
+            error_msg = f'Error code: {resp_error[0]}\n' \
+                        f'Error message: {resp_error[1]}'
+            print(error_msg)
+            return ('Error', )
 
-                # обработка ошибок VK
-                if resp.json().get('error'):
-                    resp_error = resp.json()['error']['error_code'], \
-                                 resp.json()['error']['error_msg']
-                    error_msg = f'Error code: {resp_error[0]}\n' \
-                                f'Error message: {resp_error[1]}'
-                    print(error_msg)
-                    continue
-
-                # если пришел пустой ответ, то пропускаем цикл
-                if not resp.json()['response']['items']:
-                    continue
-
-            except ConnectionError:
-                print('Connection error')
+        for row in resp.json()['response']['items']:
+            self.offset += 1
+            # если профиль закрытый, то пропускаем
+            if row['is_closed']:
                 continue
-            else:
-                person = resp.json()['response']['items'][0]
-                # если профиль закрытый, то пропускаем
-                if person['is_closed']:
-                    continue
 
             # если пользователь в игнор-листе, то пропускаем
             if session.query(
                     models.BlackList.vk_user_id)\
-                    .filter_by(vk_user_id=person['id'])\
+                    .filter_by(vk_user_id=row['id'])\
                     .first() is not None:
                 continue
 
-            photo_profile = self.get_photos_from_profile(person['id'])
+            # если пользователь в избранном, то пропускаем
+            if session.query(
+                    models.FavoriteUser.vk_user_id)\
+                    .filter_by(vk_user_id=row['id'])\
+                    .first() is not None:
+                continue
 
-            return person['first_name'], person['last_name'], \
-                f'{config.base_profile_url}{person["id"]}', \
+            photo_profile = self.get_photos_from_profile(row['id'])
+
+            return row['first_name'], row['last_name'], \
+                f'{config.base_profile_url}{row["id"]}', \
                 photo_profile
 
     def get_user_info(self, user_id, mode=0):
@@ -122,22 +113,6 @@ class VkApi:
             data = response.json()['response'][0]
 
             # Город
-
-            # if data.get('city', None) is None:
-            #     # если город не указан в профиле
-            #     # то получаем его из списка городов VK
-            #     params = {'user_ids': user_id,
-            #               'country_id': 1,
-            #               'need_all': 0
-            #               }
-            #     res = requests.get(url=f'{config.base_url}database.getCities',
-            #                        params={**params, **self.params}).json()
-            #
-            #     cities = [s['title'] for s in res['response']['items']]
-            #     # выбираем город
-            #     city = choice(cities)
-            # else:
-
             if data.get('city'):
                 city = data.get('city').get('title')
             else:
@@ -146,7 +121,6 @@ class VkApi:
             # Дата рождения
             bdate = data.get('bdate')
             if len(bdate) > 6:
-                # bdate = int(data.get('bdate').split('.')[2])
                 bdate = int(bdate[-4:])
             else:
                 bdate = None
@@ -156,9 +130,6 @@ class VkApi:
 
             # Семейное положение
             relation = data.get('relation')
-            # if relation is None:
-            # выбираем рандомно из кодов ВК
-            #    relation = randint(0, 8)
 
             # Имя
             name = data.get('first_name')
@@ -175,11 +146,11 @@ class VkApi:
         :return: str
         """
         # пауза для исключения ошибки 'Too many requests per second'
-        sleep(0.3)
+        # sleep(0.2)
+
         res = []
 
         endpoint = f'{config.base_url}photos.get'
-
         params = {'owner_id': user_id,
                   'album_id': 'profile',
                   'extended': 1, }
@@ -193,6 +164,10 @@ class VkApi:
             if resp.status_code != 200:
                 raise ConnectionError
 
+        except ConnectionError:
+            print('Connection error')
+
+        else:
             # критерии отбора фото (весА)
             # likes:comments 3:1
             like_score = 1
@@ -210,13 +185,10 @@ class VkApi:
 
             for foto in result:
                 res.append(f"photo{foto['owner_id']}_{foto['id']}")
-
                 if len(res) == 3:
                     break
 
             return ','.join(res)
 
-        except ConnectionError:
-            print('Connection error')
 
-    
+

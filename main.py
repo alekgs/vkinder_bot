@@ -8,7 +8,8 @@ from datetime import datetime as dt
 
 # заставка для консоли)
 tprint('VKinder Bot')
-bot_user_info = {}
+
+# bot_user_info = {}
 
 
 def main():
@@ -21,7 +22,7 @@ def main():
     session = Session()
     connection = engine.connect()
 
-    # bot_user_info = {}
+    bot_user_info = {}
     stack = []
 
     flag_favorite = False
@@ -69,7 +70,6 @@ def main():
         elif not flag_list and \
                 models.check_if_match_exists(vk_user_id)[1] is None:
 
-            vkbot.send_msg(event.user_id, "Добавлено в Игнор-лист")
             flag_black = False
 
             models.add_new_match_to_black_list(
@@ -82,6 +82,8 @@ def main():
                     vk_user_id,
                     bot_user_id
                     )
+
+            vkbot.send_msg(event.user_id, "Добавлено в Игнор-лист")
 
             dtime = dt.now().strftime('%d.%m.%Y %H:%M:%S')
             print(f'{dtime}: user id{event.user_id} '
@@ -113,6 +115,7 @@ def main():
                     vkbot.send_msg(event.user_id, f'Привет, {name_bot_user}!')
 
                     # добавляем пользователя в БД, если его там нет
+
                     if models.check_if_bot_user_exists(event.user_id) is None:
                         models.add_bot_user(event.user_id)
 
@@ -171,7 +174,7 @@ def main():
                     sex = bot_user_info.get('sex')
                     bdate = bot_user_info.get('bdate')
                     relation = bot_user_info.get('relation')
-                    
+
                     # поиск людей  в соответствии с данными
                     # пользователя бота
                     data = vk_api.search_user(city, sex, bdate, relation)
@@ -190,10 +193,19 @@ def main():
                                        attachment=data[3])
                         # print(bot_user_info)
                         flag_favorite, flag_black = True, True
-                    else:
+
+                    elif not data:
+                        # если данных нет (пришел пустой список)
+                        dtime = dt.now().strftime('%d.%m.%Y %H:%M:%S')
+                        print(f'{dtime}: Searching end, count records 0')
+                        vkbot.send_msg(event.user_id,
+                                       message='Совпадающих данных нет')
+
+                    elif 'Error' in data:
                         dtime = dt.now().strftime('%d.%m.%Y %H:%M:%S')
                         print(f'{dtime}: VK service error')
-                        vkbot.send_msg(event.user_id, message='Ошибка сервиса')
+                        vkbot.send_msg(event.user_id,
+                                       message='Ошибка сервиса VK')
 
                 elif message == 'удалить игнор-лист':
                     models.delete_match_from_black_list(event.user_id)
