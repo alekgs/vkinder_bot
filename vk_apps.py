@@ -12,9 +12,7 @@ class VkApi:
     """
 
     def __init__(self):
-        self.token = self.check_valid_token()
-        # self.token = config.access_token
-
+        self.token = config.access_token
         self.params = {
             'access_token': self.token,
             'v': config.vkapi_version
@@ -22,25 +20,6 @@ class VkApi:
         self.offset = randint(0, 50)
         self.wish_list = []
         self.black_list = []
-
-    @staticmethod
-    def check_valid_token():
-        """
-        Проверка access токена через метод
-        https://api.vk.com/method/secure.checkToken
-        :return: str | None
-        """
-        endpoint = f'{config.base_url}secure.checkToken'
-        params = {
-            'access_token': config.service_key,
-            'token': config.access_token,
-            'v': config.vkapi_version
-        }
-        resp = requests.get(url=endpoint, params=params)
-        if resp.json().get('response').get('success') == 1:
-            return config.access_token
-        else:
-            exit('Access token expired, please get new access token from VK')
 
     def search_user(self, city, sex, birth_year, relation, count=1):
         """
