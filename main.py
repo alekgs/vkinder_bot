@@ -125,9 +125,11 @@ def main():
                     add_user_to_db(event.user_id, False)
 
                 elif message == "поиск":
+
                     data = vk_api.get_user_for_bot(event.user_id)
-                    stack.append(data)
+
                     if data:
+			stack.append(data)
                         dtime = dt.now().strftime('%d.%m.%Y %H:%M:%S')
                         print(f'{dtime}: '
                               f'user id{event.user_id} '
@@ -140,6 +142,7 @@ def main():
                                        attachment=data[3])
 
                         flag_favorite, flag_black = True, True
+
                     else:
                         dtime = dt.now().strftime('%d.%m.%Y %H:%M:%S')
                         print(f'{dtime}: VK service error')

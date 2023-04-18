@@ -2,7 +2,7 @@ import config
 import requests
 import models
 from time import sleep
-from random import randint
+from random import randint, choice
 from models import Session, engine
 
 
@@ -38,7 +38,7 @@ class VkApi:
 
         while True:
             # пауза для исключения ошибки 'Too many requests per second'
-            sleep(1)
+            sleep(0.5)
             self.offset += count
             params = {
                 'count': count,
@@ -123,7 +123,18 @@ class VkApi:
 
             # Город
             if data.get('city', None) is None:
-                city = 'Москва'
+                # если город не указан в профиле
+                # то получаем его из списка городов с ВК
+                params = {'user_ids': user_id,
+                          'country_id': 1,
+                          'need_all': 0
+                          }
+                res = requests.get(url=f'{config.base_url}database.getCities',
+                                   params={**params, **self.params}).json()
+
+                cities = [s['title'] for s in res['response']['items']]
+                # выбираем город
+                city = choice(cities)
             else:
                 city = data.get('city').get('title')
 
@@ -200,10 +211,15 @@ class VkApi:
         :param user_id: int
         :return: list
         """
+        result = self.get_user_info(user_id)
 
-        city, sex, bdate, relation = self.get_user_info(user_id)
+        if not all(result):
+            return result
+
+        city, sex, bdate, relation = result
 
         if models.check_if_bot_user_exists(user_id) is None:
             models.add_bot_user(user_id)
 
         return self.search_user(city, sex, bdate, relation)
+

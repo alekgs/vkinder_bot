@@ -1,6 +1,5 @@
 token_vkinder = ''
 access_token = ''
-service_key = ''
 
 vkapi_version = '5.131'
 redirect_uri = 'http://localhost/callback'
