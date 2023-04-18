@@ -168,7 +168,7 @@ class VkApi:
         :return: str
         """
         # пауза для исключения ошибки 'Too many requests per second'
-        sleep(0.5)
+        sleep(0.3)
         res = []
 
         endpoint = f'{config.base_url}photos.get'
@@ -186,12 +186,22 @@ class VkApi:
             if resp.status_code != 200:
                 raise ConnectionError
 
-            for foto in sorted(
-                               resp.json()['response']['items'],
-                               key=lambda x: (x['likes']['count'],
-                                              x['comments']['count']),
-                               reverse=True
-                              ):
+            # критерии отбора фото (весА)
+            # likes: 1, comments: 3
+            #
+
+            com_score = 3
+
+            sort_photos = \
+                lambda x: \
+                (
+                 x['likes']['count'], x['comments']['count']
+                )[x['likes']['count'] <= x['comments']['count'] * com_score]
+
+            result = sorted(resp.json()['response']['items'],
+                            key=sort_photos, reverse=True)
+
+            for foto in result:
                 res.append(f"photo{foto['owner_id']}_{foto['id']}")
 
                 if len(res) == 3:
