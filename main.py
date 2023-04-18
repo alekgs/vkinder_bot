@@ -8,6 +8,7 @@ from datetime import datetime as dt
 
 # заставка для консоли)
 tprint('VKinder Bot')
+bot_user_info = {}
 
 
 def main():
@@ -20,6 +21,7 @@ def main():
     session = Session()
     connection = engine.connect()
 
+    # bot_user_info = {}
     stack = []
 
     flag_favorite = False
@@ -95,12 +97,49 @@ def main():
 
                 if message in ('start', 'hi', 'привет', 'старт'):
                     dtime = dt.now().strftime('%d.%m.%Y %H:%M:%S')
-                    f_name = vk_api.get_user_info(event.user_id, 1)
                     print(f'{dtime}: user id{event.user_id} connected')
 
-                    vkbot.send_msg(event.user_id,
-                                   f'Привет, {f_name}!\n'
-                                   f'Нажми "Поиск" для старта')
+                    # запросить всю инфу от пользователя бота,
+
+                    res = vk_api.get_user_info(event.user_id, 1)
+                    name_bot_user, city, sex, bdate, relation = res
+
+                    # заполняем словарь для поиска
+                    bot_user_info['city'] = city
+                    bot_user_info['sex'] = sex
+                    bot_user_info['relation'] = relation
+                    bot_user_info['bdate'] = bdate
+
+                    vkbot.send_msg(event.user_id, f'Привет, {name_bot_user}!')
+
+                    # добавляем пользователя в БД, если его там нет
+                    if models.check_if_bot_user_exists(event.user_id) is None:
+                        models.add_bot_user(event.user_id)
+
+                    # если отсутствуют город и дата рождения
+                    if not city:
+                        # проверяем city в словаре
+                        city = bot_user_info.get('city')
+                        if not city:
+                            vkbot.send_msg(
+                                event.user_id,
+                                f'❗ Не указан город в Вашем профиле\n'
+                                f'Наберите "город название_города"\n'
+                                f'Или укажите его в Вашем профиле ВК'
+                                )
+                    elif not bdate:
+                        # проверяем ДР в словаре
+                        bdate = bot_user_info.get('bdate')
+                        if not bdate:
+                            vkbot.send_msg(
+                                event.user_id,
+                                f'❗ Не указана дата рождения в Вашем профиле\n'
+                                f'Наберите "год рождения год_рождения "',
+                                f'(4 цифры).\n'
+                                f'Или укажите его в Вашем профиле ВК')
+                    else:
+                        vkbot.send_msg(event.user_id,
+                                       f'Нажми "Поиск" для старта')
 
                 elif message == "избранное":
                     for user in models.show_all_favorites(event.user_id):
@@ -125,11 +164,20 @@ def main():
                     add_user_to_db(event.user_id, False)
 
                 elif message == "поиск":
+                    # читаем данные пользователя из словаря,
+                    # созданного при старте бота
 
-                    data = vk_api.get_user_for_bot(event.user_id)
+                    city = bot_user_info.get('city')
+                    sex = bot_user_info.get('sex')
+                    bdate = bot_user_info.get('bdate')
+                    relation = bot_user_info.get('relation')
+                    
+                    # поиск людей  в соответствии с данными
+                    # пользователя бота
+                    data = vk_api.search_user(city, sex, bdate, relation)
 
                     if data:
-			stack.append(data)
+                        stack.append(data)
                         dtime = dt.now().strftime('%d.%m.%Y %H:%M:%S')
                         print(f'{dtime}: '
                               f'user id{event.user_id} '
@@ -140,9 +188,8 @@ def main():
                         vkbot.send_msg(event.user_id,
                                        message=msg,
                                        attachment=data[3])
-
+                        # print(bot_user_info)
                         flag_favorite, flag_black = True, True
-
                     else:
                         dtime = dt.now().strftime('%d.%m.%Y %H:%M:%S')
                         print(f'{dtime}: VK service error')
@@ -162,6 +209,19 @@ def main():
                           f'cleared the Favorite list')
                     vkbot.send_msg(event.user_id, 'Избранное очищено')
 
+                elif message.startswith('город '):
+                    city = message.split()[1]
+                    bot_user_info['city'] = city.title()
+                    vkbot.send_msg(event.user_id,
+                                   f'✅ Ваш город {city.title()}\n'
+                                   f'Нажмите "Поиск" для продолжения')
+
+                elif message.startswith('год рождения'):
+                    year = message.split()[1]
+                    bot_user_info['year'] = int(year)
+                    vkbot.send_msg(event.user_id,
+                                   f'✅ Год вашего рождения: {year}\n'
+                                   f'Нажмите "Поиск" для продолжения')
                 else:
                     vkbot.send_msg(event.user_id, "Неизвестная команда")
 

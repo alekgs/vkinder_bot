@@ -2,7 +2,7 @@ import config
 import requests
 import models
 from time import sleep
-from random import randint, choice
+from random import randint
 from models import Session, engine
 
 
@@ -38,7 +38,7 @@ class VkApi:
 
         while True:
             # пауза для исключения ошибки 'Too many requests per second'
-            sleep(0.5)
+            sleep(0.3)
             self.offset += count
             params = {
                 'count': count,
@@ -106,7 +106,7 @@ class VkApi:
         endpoint = f'{config.base_url}users.get'
         params = {
             'user_ids': user_id,
-            'fields': 'first_name, bdate, sex, city, relation'
+            'fields': 'first_name, last_name, bdate, sex, city, relation'
         }
         try:
             response = requests.get(url=endpoint,
@@ -121,38 +121,51 @@ class VkApi:
         else:
             data = response.json()['response'][0]
 
-            # Город (необязателен в профиле)
-            if data.get('city', None) is None:
-                # если город не указан в профиле
-                # то получаем его из списка городов с ВК
-                params = {'user_ids': user_id,
-                          'country_id': 1,
-                          'need_all': 0
-                          }
-                res = requests.get(url=f'{config.base_url}database.getCities',
-                                   params={**params, **self.params}).json()
+            # Город
 
-                cities = [s['title'] for s in res['response']['items']]
-                # выбираем город
-                city = choice(cities)
-            else:
+            # if data.get('city', None) is None:
+            #     # если город не указан в профиле
+            #     # то получаем его из списка городов VK
+            #     params = {'user_ids': user_id,
+            #               'country_id': 1,
+            #               'need_all': 0
+            #               }
+            #     res = requests.get(url=f'{config.base_url}database.getCities',
+            #                        params={**params, **self.params}).json()
+            #
+            #     cities = [s['title'] for s in res['response']['items']]
+            #     # выбираем город
+            #     city = choice(cities)
+            # else:
+
+            if data.get('city'):
                 city = data.get('city').get('title')
+            else:
+                city = None
 
-            # Дата рождения (обязательна в профиле)
-            bdate = int(data.get('bdate').split('.')[2])
+            # Дата рождения
+            bdate = data.get('bdate')
+            if len(bdate) > 6:
+                # bdate = int(data.get('bdate').split('.')[2])
+                bdate = int(bdate[-4:])
+            else:
+                bdate = None
 
-            # Пол (обязателен в профиле)
+            # Пол (выбираем противоположный)
             sex = (1, 2)[data.get('sex') == 1]
 
-            # Семейное положение (необязательное в профиле)
+            # Семейное положение
             relation = data.get('relation')
-            if relation is None:
-                # выбираем рандомно из кодов ВК
-                relation = randint(0, 8)
+            # if relation is None:
+            # выбираем рандомно из кодов ВК
+            #    relation = randint(0, 8)
 
-            if mode:
-                return data['first_name']
-            return city, sex, bdate, relation
+            # Имя
+            name = data.get('first_name')
+            if not name:
+                name = data.get('last_name')
+
+            return name, city, sex, bdate, relation
 
     def get_photos_from_profile(self, user_id):
         """
@@ -181,16 +194,16 @@ class VkApi:
                 raise ConnectionError
 
             # критерии отбора фото (весА)
-            # likes: 1, comments: 3
-            #
-
-            com_score = 3
+            # likes:comments 3:1
+            like_score = 1
+            comm_score = 3
 
             sort_photos = \
                 lambda x: \
                 (
                  x['likes']['count'], x['comments']['count']
-                )[x['likes']['count'] <= x['comments']['count'] * com_score]
+                )[x['likes']['count'] * like_score <=
+                  x['comments']['count'] * comm_score]
 
             result = sorted(resp.json()['response']['items'],
                             key=sort_photos, reverse=True)
@@ -220,7 +233,7 @@ class VkApi:
         # if not all(result):
         #     return result
 
-        city, sex, bdate, relation = result
+        name, city, sex, bdate, relation = result
 
         if models.check_if_bot_user_exists(user_id) is None:
             models.add_bot_user(user_id)
