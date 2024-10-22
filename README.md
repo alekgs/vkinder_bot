@@ -48,4 +48,4 @@
 
 #### Пример работы "VKinder chat-bot"  
 [VKinder work example](vkinder_work_example.mp4)
-
+https://github.com/alekgs/vkinder_bot/blob/main/vkinder_example_work.mp4
