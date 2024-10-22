@@ -47,5 +47,5 @@
 [VKinder DB diagram](vkinder_database_diagram.png)
 
 #### Пример работы "VKinder chat-bot"  
-[VKinder work example](VKinder_work_example.mp4)
+[VKinder work example](vkinder_work_example.mp4)
 
